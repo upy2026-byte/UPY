@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>UPY</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap');
+:root{
+  --bg:#F9F4E8;
+  --rosa:#FF85A1;--rosa-d:#d9607c;
+  --cian:#76E5EB;--cian-d:#45bfc6;
+  --naranja:#FFB347;--naranja-d:#d98c2e;
+  --verde:#98EE99;--verde-d:#60c462;
+  --text:#2d1f5e;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+
+/* ── CRÍTICO PARA APP INVENTOR ──
+   No usar overflow:hidden en body/html.
+   El WebViewer necesita poder hacer scroll
+   cuando el teclado aparece. */
+html{width:100%;min-height:100%;background:var(--bg);}
+body{
+  width:100%;min-height:100%;
+  background:var(--bg);
+  font-family:'Nunito',Arial,sans-serif;
+  touch-action:manipulation;user-select:none;
+  /* SIN overflow:hidden — eso era el bug */
+}
+
+/* SCREENS — usando min-height en lugar de fixed */
+.screen{
+  display:none;flex-direction:column;align-items:center;
+  padding:14px 15px 20px;background:var(--bg);
+  min-height:100vh;width:100%;
+}
+.screen.active{display:flex;}
+
+/* LOGO */
+.logo{display:flex;flex-direction:column;align-items:center;margin-bottom:4px;}
+.lmk{font-size:30px;line-height:1;margin-bottom:-2px;}
+.ltx{font-size:36px;font-weight:900;letter-spacing:-1px;
+  background:linear-gradient(135deg,#FF85A1,#FFB347,#76E5EB,#98EE99);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 2px 4px rgba(0,0,0,.12));text-transform:lowercase;}
+.logo.sm .lmk{font-size:20px;}
+.logo.sm .ltx{font-size:24px;}
+
+/* BUBBLE BTN */
+.bb{border:none;cursor:pointer;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;border-radius:24px;padding:14px 16px;
+  font-family:'Nunito',Arial,sans-serif;font-weight:900;font-size:19px;
+  color:var(--text);text-transform:uppercase;letter-spacing:.4px;
+  transition:transform .1s;position:relative;overflow:hidden;width:100%;
+  -webkit-appearance:none;appearance:none;}
+.bb::before{content:'';position:absolute;top:5px;left:10px;width:36%;height:20%;
+  background:rgba(255,255,255,.55);border-radius:50%;filter:blur(3px);}
+.bb:active{transform:scale(0.93);}
+.bb.rosa  {background:linear-gradient(145deg,#ffa8bc,var(--rosa));  box-shadow:0 6px 0 var(--rosa-d),  0 9px 16px rgba(255,133,161,.4);border:3px solid rgba(255,255,255,.4);}
+.bb.cian  {background:linear-gradient(145deg,#a6eff3,var(--cian));  box-shadow:0 6px 0 var(--cian-d),  0 9px 16px rgba(118,229,235,.4);border:3px solid rgba(255,255,255,.4);}
+.bb.naranja{background:linear-gradient(145deg,#ffd08a,var(--naranja));box-shadow:0 6px 0 var(--naranja-d),0 9px 16px rgba(255,179,71,.4); border:3px solid rgba(255,255,255,.4);}
+.bb.verde {background:linear-gradient(145deg,#bef5be,var(--verde));  box-shadow:0 6px 0 var(--verde-d),  0 9px 16px rgba(152,238,153,.4);border:3px solid rgba(255,255,255,.4);}
+.bb.rnd{border-radius:50%;width:64px;height:64px;padding:0;font-size:10px;gap:1px;flex-shrink:0;}
+.bb.rnd .ic{font-size:20px;line-height:1;}
+
+/* TOP BAR */
+.topbar{display:flex;align-items:center;justify-content:space-between;width:100%;margin-bottom:8px;}
+.sct{font-size:19px;font-weight:900;color:var(--text);text-transform:uppercase;letter-spacing:1px;}
+
+/* ══ REGISTRO ══
+   Diseño compacto que no depende de altura de pantalla */
+#sc-reg{
+  justify-content:flex-start;gap:16px;
+  padding-top:40px;
+}
+.regcard{background:#fff;border-radius:26px;padding:24px 20px;width:100%;
+  box-shadow:0 10px 28px rgba(0,0,0,.09);
+  display:flex;flex-direction:column;align-items:center;gap:16px;}
+.regt{font-size:18px;font-weight:900;color:var(--text);text-align:center;line-height:1.3;}
+.exl{font-size:52px;}
+
+/* INPUT — key fix para App Inventor */
+.inp-wrap{width:100%;position:relative;}
+.inp{
+  width:100%;border:3px solid var(--cian);border-radius:14px;
+  padding:14px 16px;font-size:22px;
+  font-family:'Nunito',Arial,sans-serif;font-weight:700;color:var(--text);
+  background:#f0fdfe;outline:none;text-align:center;
+  /* Sin estos el WebViewer puede comportarse raro */
+  -webkit-appearance:none;appearance:none;
+  display:block;
+}
+.inp:focus{border-color:var(--rosa);background:#fff0f4;}
+
+/* Botón separado con margin-top generoso para que no quede
+   oculto detrás del teclado */
+.btn-empezar{
+  width:100%;border:none;cursor:pointer;
+  background:linear-gradient(145deg,#bef5be,var(--verde));
+  box-shadow:0 6px 0 var(--verde-d),0 9px 16px rgba(152,238,153,.4);
+  border:3px solid rgba(255,255,255,.4);
+  border-radius:24px;padding:18px 16px;
+  font-family:'Nunito',Arial,sans-serif;font-weight:900;font-size:22px;
+  color:var(--text);text-transform:uppercase;letter-spacing:.4px;
+  position:relative;overflow:hidden;
+  -webkit-appearance:none;appearance:none;
+  margin-top:4px;
+}
+.btn-empezar::before{content:'';position:absolute;top:5px;left:10px;width:36%;height:20%;
+  background:rgba(255,255,255,.55);border-radius:50%;filter:blur(3px);}
+.btn-empezar:active{transform:scale(0.93);}
+
+/* ══ DASHBOARD ══ */
+#sc-dash{gap:12px;min-height:100vh;}
+.dash-top{display:flex;align-items:center;justify-content:space-between;width:100%;}
+.dash-btns{display:flex;flex-direction:column;gap:14px;width:100%;margin:auto 0;}
+.dic{font-size:40px;line-height:1;margin-bottom:2px;}
+.dlb{font-size:22px;font-weight:900;}
+.dsb{font-size:12px;font-weight:700;opacity:.75;text-transform:none;margin-top:1px;}
+.botbar{display:flex;justify-content:space-between;align-items:center;width:100%;margin-top:auto;padding-top:14px;}
+
+/* ══ MI ESCUELA ══ */
+#sc-esc{gap:10px;}
+.lgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;}
+.lcard{background:#fff;border-radius:18px;padding:14px 8px;
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  box-shadow:0 4px 12px rgba(0,0,0,.08);cursor:pointer;transition:transform .12s;border:3px solid transparent;min-height:120px;justify-content:center;}
+.lcard:active{transform:scale(0.95);}
+.lcard.r{border-color:var(--rosa);}
+.lcard.c{border-color:var(--cian);}
+.lcard.n{border-color:var(--naranja);}
+.lcard.v{border-color:var(--verde);}
+.lic{font-size:36px;}
+.lnm{font-size:13px;font-weight:900;color:var(--text);text-align:center;text-transform:uppercase;}
+.ldn{font-size:10px;font-weight:700;color:#aaa;}
+
+/* ══ MÓDULO ══ */
+#sc-mod{gap:8px;}
+.minstr{font-size:14px;font-weight:900;color:var(--text);text-align:center;
+  background:#fff;border-radius:14px;padding:9px 12px;width:100%;
+  box-shadow:0 3px 10px rgba(0,0,0,.06);}
+.mdisp{background:#fff;border-radius:26px;width:100%;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:20px 14px;box-shadow:0 5px 18px rgba(0,0,0,.09);gap:8px;cursor:pointer;
+  min-height:220px;}
+.big-l{font-size:110px;font-weight:900;line-height:1;animation:popIn .32s cubic-bezier(.175,.885,.32,1.275);text-transform:uppercase;}
+.big-n{font-size:100px;font-weight:900;line-height:1;color:var(--text);animation:popIn .32s cubic-bezier(.175,.885,.32,1.275);}
+.color-blob{width:130px;height:130px;border-radius:50%;box-shadow:0 7px 22px rgba(0,0,0,.15);animation:popIn .32s cubic-bezier(.175,.885,.32,1.275);}
+@keyframes popIn{from{transform:scale(.25);opacity:0;}to{transform:scale(1);opacity:1;}}
+.mlbl{font-size:20px;font-weight:900;color:var(--text);text-align:center;text-transform:uppercase;}
+.mslbl{font-size:13px;font-weight:700;color:#aaa;text-align:center;}
+.mseq{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;width:100%;}
+.chip{background:#fff;border:3px solid var(--cian);border-radius:12px;padding:7px 10px;
+  font-size:22px;font-weight:900;color:var(--text);min-width:44px;text-align:center;cursor:pointer;}
+.chip.on{background:var(--cian);border-color:var(--cian-d);}
+.mctrl{display:flex;gap:9px;width:100%;}
+
+/* VOZ */
+.tts-bar{display:flex;align-items:center;gap:8px;background:#fff;border-radius:12px;
+  padding:7px 12px;width:100%;box-shadow:0 2px 8px rgba(0,0,0,.06);}
+.tts-dot{width:9px;height:9px;border-radius:50%;background:var(--cian);display:inline-block;margin-right:3px;opacity:.3;}
+.tts-dot.on{opacity:1;}
+.tts-msg{font-size:13px;font-weight:700;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+/* ══ MI DÍA ══ */
+#sc-dia{gap:9px;}
+.dialist{display:flex;flex-direction:column;gap:9px;width:100%;}
+.trow{background:#fff;border-radius:16px;padding:13px 14px;display:flex;align-items:center;gap:10px;
+  box-shadow:0 3px 10px rgba(0,0,0,.07);cursor:pointer;transition:transform .12s,background .3s;}
+.trow:active{transform:scale(0.97);}
+.trow.hecho{background:#f0fff0;}
+.tic2{font-size:32px;}
+.tinf{flex:1;}
+.tnm{font-size:16px;font-weight:900;color:var(--text);text-transform:uppercase;}
+.tsub{font-size:10px;font-weight:700;color:#bbb;}
+.tchk{font-size:24px;}
+
+/* ══ DINERO ══ */
+#sc-dinero{gap:12px;}
+.coin{background:radial-gradient(circle at 35% 35%,#f0f0f0,#c0c0c0);border-radius:50%;
+  width:120px;height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  box-shadow:0 5px 0 #999,0 8px 20px rgba(0,0,0,.16),inset 0 2px 5px rgba(255,255,255,.8);
+  border:4px solid #bbb;flex-shrink:0;}
+.cval{font-size:32px;font-weight:900;color:var(--text);}
+.csub{font-size:8px;font-weight:700;color:#666;text-align:center;line-height:1.2;}
+.preg{font-size:18px;font-weight:900;color:var(--text);text-align:center;}
+.opts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;width:100%;}
+.opt{border:none;border-radius:16px;padding:14px 5px;
+  font-family:'Nunito',Arial,sans-serif;font-weight:900;font-size:16px;color:var(--text);
+  cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;
+  -webkit-appearance:none;}
+.opt:active{transform:scale(0.92);}
+.opt .oi{font-size:24px;}
+.ov {background:linear-gradient(145deg,#b4f5b4,var(--verde));  box-shadow:0 5px 0 var(--verde-d);  border:2px solid rgba(255,255,255,.5);}
+.oc {background:linear-gradient(145deg,#a6eff3,var(--cian));   box-shadow:0 5px 0 var(--cian-d);   border:2px solid rgba(255,255,255,.5);}
+.on2{background:linear-gradient(145deg,#ffd08a,var(--naranja));box-shadow:0 5px 0 var(--naranja-d);border:2px solid rgba(255,255,255,.5);}
+.fbm{font-size:20px;font-weight:900;text-align:center;padding:12px 16px;border-radius:16px;display:none;width:100%;}
+.fbok{background:#d4f8d4;color:#2a7d2a;display:flex!important;}
+.fber{background:#fde0e0;color:#c0392b;display:flex!important;}
+
+/* ══ PERFIL ══ */
+#sc-perf{gap:10px;}
+.pav{width:80px;height:80px;border-radius:50%;
+  background:linear-gradient(135deg,var(--cian),var(--verde));
+  border:4px solid #fff;box-shadow:0 5px 16px rgba(0,0,0,.12);
+  display:flex;align-items:center;justify-content:center;font-size:38px;flex-shrink:0;}
+.pnm{font-size:18px;font-weight:900;color:var(--text);}
+.sgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;}
+.scard{border-radius:16px;padding:12px;display:flex;flex-direction:column;align-items:center;gap:3px;box-shadow:0 4px 12px rgba(0,0,0,.08);}
+.scard.r{background:linear-gradient(145deg,#ffcdd9,#ffaabf);}
+.scard.c{background:linear-gradient(145deg,#c6f5f7,#99e8ec);}
+.sv{font-size:32px;font-weight:900;color:var(--text);}
+.sl{font-size:10px;font-weight:900;color:var(--text);text-transform:uppercase;text-align:center;opacity:.8;}
+.repcard{background:#fff;border-radius:16px;padding:12px 14px;width:100%;
+  box-shadow:0 3px 12px rgba(0,0,0,.07);max-height:240px;overflow-y:auto;}
+.rept{font-size:13px;font-weight:900;color:var(--text);margin-bottom:7px;text-transform:uppercase;}
+.repr{display:flex;justify-content:space-between;align-items:center;
+  padding:6px 0;border-bottom:2px solid #f0ece0;font-size:12px;font-weight:700;}
+.repr:last-child{border-bottom:none;}
+.repr .rn{color:var(--text);}
+.repr .rd{color:#ccc;font-size:10px;}
+
+/* ══ MODAL ══ */
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.5);
+  display:none;align-items:center;justify-content:center;z-index:999;}
+#modal.show{display:flex;}
+.mbox{background:var(--bg);border-radius:28px;padding:26px 22px;text-align:center;
+  display:flex;flex-direction:column;align-items:center;gap:12px;max-width:300px;width:90%;
+  animation:popIn .4s cubic-bezier(.175,.885,.32,1.275);}
+.mem{font-size:70px;} .mti{font-size:24px;font-weight:900;color:var(--text);} .msb{font-size:14px;font-weight:700;color:#888;}
+
+/* CONFETI */
+.cf{position:fixed;width:10px;height:10px;border-radius:3px;
+  animation:cfFall 1.6s ease-in forwards;z-index:1000;pointer-events:none;}
+@keyframes cfFall{from{transform:translateY(-20px) rotate(0);opacity:1;}to{transform:translateY(100vh) rotate(720deg);opacity:0;}}
+
+/* TOAST */
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(90px);
+  background:#2d1f5e;color:#fff;padding:10px 20px;border-radius:50px;
+  font-weight:800;font-size:13px;transition:transform .3s;z-index:998;
+  max-width:88vw;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#toast.show{transform:translateX(-50%) translateY(0);}
+
+@keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.07);}}
+.spk{animation:pulse .55s ease-in-out infinite;}
+</style>
+</head>
+<body>
+
+<!-- ══ REGISTRO ══ -->
+<div class="screen active" id="sc-reg">
+  <div class="logo"><div class="lmk">🐒</div><div class="ltx">upy</div></div>
+  <div class="regcard">
+    <div class="exl">👋</div>
+    <div class="regt">¡HOLA! ¿CÓMO TE LLAMAS?</div>
+
+    <!-- Input sin type especial, con id claro -->
+    <div class="inp-wrap">
+      <input class="inp" id="inp-nom"
+             type="text"
+             inputmode="text"
+             enterkeyhint="go"
+             placeholder="Escribe tu nombre"
+             maxlength="20"
+             autocomplete="off"
+             autocorrect="off"
+             autocapitalize="words"
+             spellcheck="false">
+    </div>
+
+    <!-- Botón independiente, no dentro de form, con onclick explícito -->
+    <button class="btn-empezar" id="btn-empezar" type="button" onclick="registrarNino()">
+      ¡EMPEZAR! 🚀
+    </button>
+  </div>
+</div>
+
+<!-- ══ DASHBOARD ══ -->
+<div class="screen" id="sc-dash">
+  <div class="dash-top">
+    <div class="logo sm"><div class="lmk">🐒</div><div class="ltx">upy</div></div>
+    <div id="saludo" style="font-size:15px;font-weight:900;color:var(--text);">¡Hola!</div>
+  </div>
+  <div class="dash-btns">
+    <button class="bb rosa" type="button" onclick="ir('esc')" style="min-height:140px;">
+      <div class="dic">📚</div><div class="dlb">MI ESCUELA</div>
+      <div class="dsb">Aprende a leer y contar</div>
+    </button>
+    <button class="bb cian" type="button" onclick="ir('dia')" style="min-height:140px;">
+      <div class="dic">🏠</div><div class="dlb">MI DÍA</div>
+      <div class="dsb">Tareas cotidianas</div>
+    </button>
+  </div>
+  <div class="botbar">
+    <button class="bb verde rnd" type="button" onclick="ir('perf')"><span class="ic">👤</span><span>PERFIL</span></button>
+    <button class="bb naranja rnd" type="button" onclick="showHelp()"><span class="ic">❓</span><span>AYUDA</span></button>
+  </div>
+</div>
+
+<!-- ══ MI ESCUELA ══ -->
+<div class="screen" id="sc-esc">
+  <div class="topbar">
+    <button class="bb cian rnd" type="button" onclick="ir('dash')"><span class="ic">←</span><span>ATRÁS</span></button>
+    <div class="logo sm"><div class="lmk">🐒</div><div class="ltx">upy</div></div>
+    <div style="width:64px;"></div>
+  </div>
+  <div class="sct">MI ESCUELA</div>
+  <div class="lgrid">
+    <div class="lcard r" onclick="abrirModulo('letras')">
+      <div class="lic">🔤</div><div class="lnm">LETRAS</div><div class="ldn" id="done-letras">—</div>
+    </div>
+    <div class="lcard c" onclick="abrirModulo('numeros')">
+      <div class="lic">🔢</div><div class="lnm">NÚMEROS</div><div class="ldn" id="done-numeros">—</div>
+    </div>
+    <div class="lcard n" onclick="ir('dinero')">
+      <div class="lic">💰</div><div class="lnm">DINERO</div><div class="ldn" id="done-dinero">—</div>
+    </div>
+    <div class="lcard v" onclick="abrirModulo('colores')">
+      <div class="lic">🎨</div><div class="lnm">COLORES</div><div class="ldn" id="done-colores">—</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MÓDULO INTERACTIVO ══ -->
+<div class="screen" id="sc-mod">
+  <div class="topbar">
+    <button class="bb rosa rnd" type="button" onclick="ir('esc')"><span class="ic">←</span><span>ATRÁS</span></button>
+    <div class="logo sm"><div class="lmk">🐒</div><div class="ltx">upy</div></div>
+    <div style="width:64px;"></div>
+  </div>
+  <div class="sct" id="mod-titulo">LETRAS</div>
+  <div class="minstr" id="mod-instr">🎵 ¡Repite conmigo! Toca la letra</div>
+  <div class="tts-bar" id="tts-bar" style="display:none;">
+    <span class="tts-dot" id="td0"></span>
+    <span class="tts-dot" id="td1"></span>
+    <span class="tts-dot" id="td2"></span>
+    <span class="tts-msg" id="tts-msg"></span>
+  </div>
+  <div class="mdisp" id="mdisp" onclick="modTocar()">
+    <div id="mod-cnt"></div>
+    <div class="mlbl" id="mod-lbl"></div>
+    <div class="mslbl">👆 ¡TÓCAME!</div>
+  </div>
+  <div class="mseq" id="mseq"></div>
+  <div class="mctrl">
+    <button class="bb naranja" type="button" onclick="modPrev()" style="flex:1;padding:11px;font-size:15px;">⬅ ANTERIOR</button>
+    <button class="bb rosa"    type="button" onclick="modNext()" style="flex:1;padding:11px;font-size:15px;">SIGUIENTE ➡</button>
+  </div>
+  <button class="bb verde" type="button" onclick="modFin()" style="padding:11px;font-size:15px;margin-top:4px;">✅ ¡TERMINÉ!</button>
+</div>
+
+<!-- ══ MI DÍA ══ -->
+<div class="screen" id="sc-dia">
+  <div class="topbar">
+    <button class="bb rosa rnd" type="button" onclick="ir('dash')"><span class="ic">←</span><span>ATRÁS</span></button>
+    <div class="logo sm"><div class="lmk">🐒</div><div class="ltx">upy</div></div>
+    <div style="width:64px;"></div>
+  </div>
+  <div class="sct">MI DÍA</div>
+  <div class="dialist">
+    <div class="trow" onclick="tarea(this,'Hora del Baño','banio')">
+      <div class="tic2">🛁</div>
+      <div class="tinf"><div class="tnm">HORA DEL BAÑO</div><div class="tsub">Higiene personal</div></div>
+      <div class="tchk">⬜</div>
+    </div>
+    <div class="trow" onclick="tarea(this,'Cepillar Dientes','dientes')">
+      <div class="tic2">🪥</div>
+      <div class="tinf"><div class="tnm">CEPILLAR DIENTES</div><div class="tsub">Salud bucal</div></div>
+      <div class="tchk">⬜</div>
+    </div>
+    <div class="trow" onclick="tarea(this,'Desayuno','desayuno')">
+      <div class="tic2">🥣</div>
+      <div class="tinf"><div class="tnm">DESAYUNO</div><div class="tsub">¡A comer!</div></div>
+      <div class="tchk">⬜</div>
+    </div>
+    <div class="trow" onclick="tarea(this,'Ir al Banco','banco')">
+      <div class="tic2">🏦</div>
+      <div class="tinf"><div class="tnm">IR AL BANCO</div><div class="tsub">Autonomía</div></div>
+      <div class="tchk">⬜</div>
+    </div>
+    <div class="trow" onclick="tarea(this,'Hora de Dormir','dormir')">
+      <div class="tic2">😴</div>
+      <div class="tinf"><div class="tnm">HORA DE DORMIR</div><div class="tsub">Descanso</div></div>
+      <div class="tchk">⬜</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ DINERO ══ -->
+<div class="screen" id="sc-dinero">
+  <div class="topbar">
+    <button class="bb naranja rnd" type="button" onclick="ir('esc')"><span class="ic">←</span><span>ATRÁS</span></button>
+    <div class="logo sm"><div class="lmk">🐒</div><div class="ltx">upy</div></div>
+    <div style="width:64px;"></div>
+  </div>
+  <div class="sct" style="font-size:16px;">IDENTIFICAR DINERO</div>
+  <div class="coin"><div class="cval">1</div><div class="csub">BOLÍVAR<br>REP. BOLIVARIANA</div></div>
+  <div class="preg">¿CUÁNTO VALE ESTA MONEDA?</div>
+  <div class="opts">
+    <button class="opt ov"  type="button" onclick="resp(this,false)"><span class="oi">💵💵</span><span>5 BS.</span></button>
+    <button class="opt oc"  type="button" onclick="resp(this,true)"><span class="oi">💵</span><span>1 BS.</span></button>
+    <button class="opt on2" type="button" onclick="resp(this,false)"><span class="oi">💵💵💵</span><span>10 BS.</span></button>
+  </div>
+  <div class="fbm" id="fbm"></div>
+  <button class="bb verde" id="btn-listo" type="button" onclick="ir('esc')" style="display:none;padding:13px;font-size:17px;">✅ ¡LISTO!</button>
+</div>
+
+<!-- ══ PERFIL ══ -->
+<div class="screen" id="sc-perf">
+  <div class="topbar">
+    <button class="bb verde rnd" type="button" onclick="ir('dash')"><span class="ic">←</span><span>ATRÁS</span></button>
+    <div class="logo sm"><div class="lmk">🐒</div><div class="ltx">upy</div></div>
+    <div style="width:64px;"></div>
+  </div>
+  <div class="pav">🧒</div>
+  <div class="pnm" id="pnm">PERFIL</div>
+  <div class="sgrid">
+    <div class="scard r"><div class="sv" id="ste">0</div><div class="sl">MI ESCUELA<br>LECCIONES</div></div>
+    <div class="scard c"><div class="sv" id="std">0</div><div class="sl">MI DÍA<br>TAREAS</div></div>
+  </div>
+  <div class="repcard">
+    <div class="rept">📊 REPORTES DE PROGRESO</div>
+    <div id="replista">
+      <div style="text-align:center;color:#ccc;font-size:12px;padding:8px;">Sin actividad aún</div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div id="modal">
+  <div class="mbox">
+    <div class="mem" id="memi">🎉</div>
+    <div class="mti" id="mtit">¡MUY BIEN!</div>
+    <div class="msb" id="msub">¡Lo lograste! 🌟</div>
+    <button class="bb verde" type="button" onclick="cerrarModal()" style="font-size:16px;padding:12px;">¡SEGUIR APRENDIENDO! 🚀</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ════════════════════════════════
+   PERSISTENCIA localStorage puro
+════════════════════════════════ */
+const DB = {
+  getProg(){ try{return JSON.parse(localStorage.getItem('upy_prog')||'[]');}catch(e){return[];} },
+  saveProg(m,n){
+    const a=this.getProg();
+    a.unshift({m,n,f:this._f()});
+    try{localStorage.setItem('upy_prog',JSON.stringify(a.slice(0,100)));}catch(e){}
+  },
+  countProg(m){ return this.getProg().filter(x=>x.m===m).length; },
+  countLec(n){  return this.getProg().filter(x=>x.n===n).length; },
+  saveUser(n){  try{localStorage.setItem('upy_user',n);}catch(e){} },
+  getUser(){    try{return localStorage.getItem('upy_user')||'';}catch(e){return '';} },
+  _f(){
+    const d=new Date(), p=n=>String(n).padStart(2,'0');
+    return p(d.getDate())+'/'+p(d.getMonth()+1)+' '+p(d.getHours())+':'+p(d.getMinutes());
+  }
+};
+
+/* ════════════════════════════════
+   TTS — triple capa
+════════════════════════════════ */
+const TTS = {
+  q:[],busy:false,timers:[],dotT:null,isAI:false,
+
+  init(){
+    this.isAI = typeof window.AppInventor !== 'undefined';
+    // iOS unlock
+    if(window.speechSynthesis){
+      document.addEventListener('touchstart',function f(){
+        const u=new SpeechSynthesisUtterance('');u.volume=0;speechSynthesis.speak(u);
+        document.removeEventListener('touchstart',f);
+      },{once:true,passive:true});
+    }
+  },
+
+  say(t){ this.q.push(t); if(!this.busy)this._next(); },
+
+  saySeq(arr,delay){
+    arr.forEach((t,i)=>this.timers.push(setTimeout(()=>this.say(t),i*delay)));
+  },
+
+  cancel(){
+    this.q=[];this.busy=false;
+    this.timers.forEach(clearTimeout);this.timers=[];
+    if(window.speechSynthesis)try{speechSynthesis.cancel();}catch(e){}
+    if(this.isAI&&window.AppInventor)try{AppInventor.setWebViewString('TTS_STOP');}catch(e){}
+    this._hideBar();
+  },
+
+  _next(){
+    if(!this.q.length){this.busy=false;this._hideBar();return;}
+    this.busy=true;
+    const txt=this.q.shift();
+    this._showBar(txt);
+    // CAPA A
+    if(this.isAI&&window.AppInventor){
+      try{AppInventor.setWebViewString('TTS:'+txt);}catch(e){}
+      this.timers.push(setTimeout(()=>this._next(),Math.max(1200,txt.length*70)));
+      return;
+    }
+    // CAPA B
+    if(window.speechSynthesis){
+      try{
+        speechSynthesis.cancel();
+        const u=new SpeechSynthesisUtterance(txt);
+        u.lang='es-VE';u.rate=0.82;u.pitch=1.1;u.volume=1;
+        u.onend=()=>setTimeout(()=>this._next(),150);
+        u.onerror=()=>setTimeout(()=>this._next(),500);
+        speechSynthesis.speak(u);return;
+      }catch(e){}
+    }
+    // CAPA C fallback visual
+    this.timers.push(setTimeout(()=>this._next(),Math.max(1400,txt.length*75)));
+  },
+
+  _showBar(txt){
+    const b=document.getElementById('tts-bar');
+    if(!b)return;
+    b.style.display='flex';
+    document.getElementById('tts-msg').textContent='🔊 '+txt;
+    let d=0;clearInterval(this.dotT);
+    this.dotT=setInterval(()=>{
+      [0,1,2].forEach(i=>{const el=document.getElementById('td'+i);if(el)el.classList.toggle('on',i===d);});
+      d=(d+1)%3;
+    },300);
+  },
+  _hideBar(){
+    clearInterval(this.dotT);
+    const b=document.getElementById('tts-bar');if(b)b.style.display='none';
+  }
+};
+
+function vib(ms){
+  const d=ms||60;
+  if(TTS.isAI&&window.AppInventor)try{AppInventor.setWebViewString('VIB:'+d);}catch(e){}
+  try{if(navigator.vibrate)navigator.vibrate(d);}catch(e){}
+}
+
+/* ════════════════════════════════
+   DATOS
+════════════════════════════════ */
+const LETRAS=['A','B','C','D','E','F','G','H','I','J','K','L','M','N','Ñ','O','P','Q','R','S','T','U','V','W','X','Y','Z'];
+const NUMS=[{v:'0',t:'cero'},{v:'1',t:'uno'},{v:'2',t:'dos'},{v:'3',t:'tres'},{v:'4',t:'cuatro'},{v:'5',t:'cinco'},{v:'6',t:'seis'},{v:'7',t:'siete'},{v:'8',t:'ocho'},{v:'9',t:'nueve'},{v:'10',t:'diez'}];
+const COLORES=[{n:'ROJO',h:'#FF3333',v:'rojo'},{n:'AZUL',h:'#3366FF',v:'azul'},{n:'AMARILLO',h:'#FFD700',v:'amarillo'},{n:'VERDE',h:'#33BB33',v:'verde'},{n:'NARANJA',h:'#FF8800',v:'naranja'},{n:'MORADO',h:'#9922CC',v:'morado'},{n:'ROSADO',h:'#FF77AA',v:'rosado'},{n:'CELESTE',h:'#44BBFF',v:'celeste'},{n:'BLANCO',h:'#E0E0E0',v:'blanco'},{n:'NEGRO',h:'#333333',v:'negro'}];
+const EJ={A:'avión',B:'barco',C:'casa',D:'dedo',E:'escuela',F:'flor',G:'gato',H:'hormiga',I:'iglesia',J:'juguete',K:'koala',L:'luna',M:'mamá',N:'nube','Ñ':'ñame',O:'oso',P:'papá',Q:'queso',R:'rana',S:'sol',T:'tortuga',U:'uva',V:'vaca',W:'wifi',X:'xilofón',Y:'yoyo',Z:'zapato'};
+const LC=['#FF85A1','#FFB347','#76E5EB','#98EE99','#7C5CBF','#FF6B6B','#45D4DA','#FFD700'];
+const FRASES={
+  banio:  ['¡Te bañaste! ¡Bien, tú puedes!','¡Limpio y fresco! ¡Qué bien!','¡Excelente! ¡Te ves genial!'],
+  dientes:['¡Dientes limpios! ¡Qué bien!','¡Cepillaste tus dientes! ¡Tú puedes!','¡Sonrisa brillante! ¡Muy bien!'],
+  desayuno:['¡Desayunaste! ¡Tienes mucha energía!','¡Comiste bien! ¡Eso te hace fuerte!','¡Qué rico desayuno! ¡Tú puedes!'],
+  banco:  ['¡Fuiste al banco! ¡Qué responsable eres!','¡Lo lograste! ¡Eres muy capaz!','¡Muy bien! ¡Eres un campeón!'],
+  dormir: ['¡Hora de descansar! ¡Que duermas bonito!','¡Buen trabajo hoy! ¡A descansar!','¡Hasta mañana! ¡Hoy lo hiciste increíble!'],
+};
+
+/* ════════════════════════════════
+   ESTADO
+════════════════════════════════ */
+let nomUser='', dinOk=false;
+let modTipo=null, modItems=[], modIdx=0;
+
+/* ════════════════════════════════
+   BOOT — síncrono, sin await
+════════════════════════════════ */
+function boot(){
+  TTS.init();
+  const nm=DB.getUser();
+  if(nm){ nomUser=nm; actuUI(nm); ir('dash'); }
+}
+
+/* ════════════════════════════════
+   NAVEGACIÓN
+════════════════════════════════ */
+function ir(p){
+  TTS.cancel();
+  // Cerrar teclado si está abierto
+  if(document.activeElement && document.activeElement.blur)
+    document.activeElement.blur();
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('sc-'+p).classList.add('active');
+  // Scroll al tope de la nueva pantalla
+  window.scrollTo(0,0);
+  vib();
+  if(p==='perf')   updPerfil();
+  if(p==='dinero') rstDinero();
+  if(p==='esc')    updEsc();
+}
+
+function actuUI(n){
+  document.getElementById('saludo').textContent='¡Hola, '+n+'!';
+  document.getElementById('pnm').textContent='PERFIL DE '+n.toUpperCase();
+}
+
+/* ════════════════════════════════
+   REGISTRO — múltiples formas de activar
+════════════════════════════════ */
+function registrarNino(){
+  const inp=document.getElementById('inp-nom');
+  // Blur para cerrar teclado primero
+  inp.blur();
+  const n=(inp.value||'').trim();
+  if(!n){
+    inp.style.borderColor='#FF85A1';
+    vib(200);
+    TTS.say('Por favor escribe tu nombre');
+    return;
+  }
+  nomUser=n;
+  DB.saveUser(n);
+  actuUI(n);
+  vib();
+  TTS.say('¡Bienvenido '+n+'! ¡Vamos a aprender juntos!');
+  // Pequeño delay para que el teclado cierre antes de cambiar pantalla
+  setTimeout(()=>ir('dash'), 150);
+}
+
+// Enter en teclado también funciona
+document.addEventListener('DOMContentLoaded', function(){
+  const inp=document.getElementById('inp-nom');
+  if(inp){
+    inp.addEventListener('keydown', function(e){
+      if(e.key==='Enter'||e.keyCode===13) registrarNino();
+    });
+  }
+});
+
+/* ════════════════════════════════
+   MÓDULO INTERACTIVO
+════════════════════════════════ */
+function abrirModulo(tipo){
+  modTipo=tipo;modIdx=0;
+  if(tipo==='letras'){
+    modItems=[...LETRAS].sort(()=>Math.random()-.5).slice(0,8);
+    document.getElementById('mod-titulo').textContent='🔤 LETRAS';
+    document.getElementById('mod-instr').textContent='🎵 ¡Repite conmigo! Toca la letra';
+  }else if(tipo==='numeros'){
+    modItems=[...NUMS];
+    document.getElementById('mod-titulo').textContent='🔢 NÚMEROS';
+    document.getElementById('mod-instr').textContent='🔢 Toca el número para escucharlo';
+  }else{
+    modItems=[...COLORES].sort(()=>Math.random()-.5).slice(0,6);
+    document.getElementById('mod-titulo').textContent='🎨 COLORES';
+    document.getElementById('mod-instr').textContent='🎨 Toca el color para conocer su nombre';
+  }
+  renderSeq();renderDisp(true);ir('mod');
+}
+
+function renderDisp(autoS){
+  const item=modItems[modIdx];
+  const cnt=document.getElementById('mod-cnt');
+  const lbl=document.getElementById('mod-lbl');
+  if(modTipo==='letras'){
+    const col=LC[modIdx%LC.length];
+    cnt.innerHTML=`<div class="big-l" style="color:${col}">${item}</div>`;
+    lbl.textContent=item;lbl.style.color=col;
+    if(autoS)setTimeout(()=>sayLetra(item),350);
+  }else if(modTipo==='numeros'){
+    cnt.innerHTML=`<div class="big-n">${item.v}</div>`;
+    lbl.textContent=item.t.toUpperCase();lbl.style.color='var(--text)';
+    if(autoS)setTimeout(()=>sayNum(item),350);
+  }else{
+    cnt.innerHTML=`<div class="color-blob" style="background:${item.h};"></div>`;
+    lbl.textContent=item.n;lbl.style.color=item.h;
+    if(autoS)setTimeout(()=>sayColor(item),350);
+  }
+  renderSeq();
+}
+
+function renderSeq(){
+  document.getElementById('mseq').innerHTML=modItems.map((item,i)=>{
+    const lb=modTipo==='letras'?item:modTipo==='numeros'?item.v:'●';
+    const st=modTipo==='colores'?`background:${item.h};border-color:${item.h};color:#fff;`:'';
+    return`<div class="chip${i===modIdx?' on':''}" onclick="goItem(${i})" style="${st}">${lb}</div>`;
+  }).join('');
+}
+
+function modTocar(){
+  vib(70);
+  const item=modItems[modIdx];
+  if(modTipo==='letras')sayLetra(item);
+  else if(modTipo==='numeros')sayNum(item);
+  else sayColor(item);
+  const d=document.getElementById('mod-cnt');
+  d.classList.add('spk');setTimeout(()=>d.classList.remove('spk'),1300);
+}
+
+function sayLetra(l){TTS.saySeq(['Repite conmigo... '+l, l+'... de '+(EJ[l]||l), '¡Muy bien! La letra '+l],1100);}
+function sayNum(it){TTS.saySeq(['El número '+it.t, it.v+'... '+it.t, '¡Excelente! El número '+it.t],1200);}
+function sayColor(it){TTS.saySeq(['Este color se llama '+it.v,'¡Muy bien! El color '+it.v],1300);}
+
+function modNext(){
+  vib(60);
+  if(modIdx<modItems.length-1){modIdx++;renderDisp(true);}
+  else{TTS.say('¡Muy bien! ¡Completaste todas! ¡Eres increíble!');showToast('🌟 ¡Módulo completado!');lanzarCf();}
+}
+function modPrev(){vib(60);if(modIdx>0){modIdx--;renderDisp(true);}}
+function goItem(i){vib(50);modIdx=i;renderDisp(true);}
+function modFin(){
+  vib();
+  const NM={letras:'Letras',numeros:'Números',colores:'Colores'};
+  const nm=NM[modTipo]||modTipo;
+  DB.saveProg('escuela',nm);
+  TTS.say('¡Terminaste '+nm+'! ¡Eres muy inteligente!');
+  updEsc();lanzarCf();
+  abrirModal('🎉','¡BRAVO!','¡Completaste '+nm.toUpperCase()+'!');
+}
+
+/* ════════════════════════════════
+   MI DÍA
+════════════════════════════════ */
+function tarea(el,nm,key){
+  vib();
+  const chk=el.querySelector('.tchk');
+  if(chk.textContent==='✅'){TTS.say('¡Ya lo hiciste! ¡Qué bien!');return;}
+  chk.textContent='✅';el.classList.add('hecho');
+  DB.saveProg('dia',nm);
+  const fr=FRASES[key]||['¡Muy bien! ¡Tú puedes!'];
+  const f=fr[Math.floor(Math.random()*fr.length)];
+  TTS.say(f);showToast('🌟 '+f.slice(0,42));lanzarCfLeve();
+}
+
+/* ════════════════════════════════
+   DINERO
+════════════════════════════════ */
+function rstDinero(){
+  dinOk=false;
+  const fb=document.getElementById('fbm');fb.className='fbm';fb.textContent='';
+  document.getElementById('btn-listo').style.display='none';
+  document.querySelectorAll('.opt').forEach(b=>{b.disabled=false;b.style.opacity='1';});
+  setTimeout(()=>TTS.say('¿Cuánto vale esta moneda? ¡Mírala bien! ¡Tú puedes!'),500);
+}
+function resp(btn,ok){
+  if(dinOk)return;dinOk=true;vib(ok?90:280);
+  document.querySelectorAll('.opt').forEach(b=>{b.disabled=true;b.style.opacity='0.5';});
+  btn.style.opacity='1';
+  const fb=document.getElementById('fbm');
+  if(ok){
+    fb.textContent='🎉 ¡CORRECTO! ¡1 BOLÍVAR!';fb.className='fbm fbok';
+    TTS.say('¡Muy bien! ¡Correcto! La moneda vale 1 Bolívar. ¡Eres muy inteligente!');
+    DB.saveProg('escuela','Identificar Dinero');
+    document.getElementById('done-dinero').textContent='✅ Completado';
+    setTimeout(()=>{lanzarCf();abrirModal('🪙','¡CORRECTO!','La moneda vale 1 Bolívar 💰');},600);
+  }else{
+    fb.textContent='❌ ¡INTENTA OTRA VEZ!';fb.className='fbm fber';
+    TTS.say('Uy, esa no es. ¡Inténtalo de nuevo! ¡Tú puedes!');
+    setTimeout(rstDinero,2200);
+  }
+  document.getElementById('btn-listo').style.display=ok?'flex':'none';
+}
+
+/* ════════════════════════════════
+   ESTADO ESCUELA
+════════════════════════════════ */
+function updEsc(){
+  [['letras','Letras'],['numeros','Números'],['colores','Colores']].forEach(([id,nm])=>{
+    document.getElementById('done-'+id).textContent=DB.countLec(nm)>0?'✅ Completado':'—';
+  });
+  document.getElementById('done-dinero').textContent=DB.countLec('Identificar Dinero')>0?'✅ Completado':'—';
+}
+
+/* ════════════════════════════════
+   PERFIL
+════════════════════════════════ */
+function updPerfil(){
+  document.getElementById('ste').textContent=DB.countProg('escuela');
+  document.getElementById('std').textContent=DB.countProg('dia');
+  document.getElementById('pnm').textContent='PERFIL DE '+(nomUser||'TÚ').toUpperCase();
+  const lista=document.getElementById('replista');
+  const rep=DB.getProg().slice(0,20);
+  if(!rep.length){lista.innerHTML='<div style="text-align:center;color:#ccc;font-size:12px;padding:8px;">Sin actividad aún</div>';return;}
+  lista.innerHTML=rep.map(r=>`<div class="repr"><span class="rn">${r.m==='escuela'?'📚':'🏠'} ${r.n.toUpperCase()}</span><span class="rd">${r.f||''}</span></div>`).join('');
+}
+
+/* ════════════════════════════════
+   MODAL
+════════════════════════════════ */
+function abrirModal(em,ti,sb){
+  document.getElementById('memi').textContent=em;
+  document.getElementById('mtit').textContent=ti;
+  document.getElementById('msub').textContent=sb;
+  document.getElementById('modal').classList.add('show');
+}
+function cerrarModal(){document.getElementById('modal').classList.remove('show');ir('esc');}
+
+/* ════════════════════════════════
+   UTILIDADES
+════════════════════════════════ */
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),3000);
+}
+function showHelp(){vib();TTS.say('Toca los botones para aprender. ¡Tú puedes!');showToast('🐒 ¡UPY te apoya siempre!');}
+
+/* ════════════════════════════════
+   CONFETI
+════════════════════════════════ */
+const CFC=['#FF85A1','#76E5EB','#FFB347','#98EE99','#c9b3ff','#ffe566'];
+function lanzarCf(n){
+  const tot=n||44;
+  for(let i=0;i<tot;i++){
+    setTimeout(()=>{
+      const el=document.createElement('div');el.className='cf';
+      el.style.cssText=`left:${Math.random()*100}vw;top:-18px;background:${CFC[Math.floor(Math.random()*CFC.length)]};animation-duration:${1+Math.random()*.8}s;animation-delay:${Math.random()*.3}s;`;
+      document.body.appendChild(el);setTimeout(()=>el.remove(),2600);
+    },i*26);
+  }
+}
+function lanzarCfLeve(){lanzarCf(16);}
+
+/* ════════════════════════════════
+   INICIO
+════════════════════════════════ */
+boot();
+</script>
+</body>
+</html>
